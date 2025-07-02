@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, HTMLResponse
 from openai import OpenAI
 import os
 from dotenv import load_dotenv
@@ -9,46 +8,37 @@ load_dotenv()
 
 app = FastAPI()
 
-# Configuração do CORS (libera o acesso de qualquer origem)
+# Libera o frontend acessar a API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Em produção: coloque seu domínio
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Cliente OpenAI
+# Cliente da OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ✅ Rota raiz para evitar erro 404
-@app.get("/", response_class=HTMLResponse)
-async def root():
-    return """
-    <h1>🚀 HailuAI API</h1>
-    <p>API no ar com sucesso! Está tudo funcionando.</p>
-    <p>Use o front-end para enviar suas mensagens para a IA.</p>
-    """
+# ✅ Rota para verificar status da API
+@app.get("/")
+def root():
+    return {"mensagem": "🚀 HailuAI API no ar com sucesso!"}
 
-# 🔍 Rota principal de análise
+# 🤖 Rota de chat com IA
 @app.post("/chat")
-async def analisar_texto(request: Request):
+async def chat(request: Request):
     dados = await request.json()
-    mensagem = dados.get("mensagem")
+    mensagem_usuario = dados.get("mensagem")
 
-    if not mensagem:
-        return JSONResponse(content={"erro": "Mensagem vazia."}, status_code=400)
+    if not mensagem_usuario:
+        return {"resposta": "⚠️ Nenhuma mensagem foi enviada."}
 
-    try:
-        resposta = client.chat.completions.create(
-            model="gpt-4",
-            messages=[
-                {"role": "system", "content": "Você é um assistente profissional de IA para empresas."},
-                {"role": "user", "content": mensagem}
-            ]
-        )
+    resposta = client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": mensagem_usuario}],
+        temperature=0.7
+    )
 
-        resposta_ia = resposta.choices[0].message.content.strip()
-        return {"resposta": resposta_ia}
-
-    except Exception as e:
-        return JSONResponse(content={"erro": f"Erro ao processar a mensagem: {str(e)}"}, status_code=500)
+    texto_gerado = resposta.choices[0].message.content
+    return {"resposta": texto_gerado}
