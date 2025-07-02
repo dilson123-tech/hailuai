@@ -1,37 +1,54 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-import os
+from fastapi.responses import JSONResponse, HTMLResponse
 from openai import OpenAI
+import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 app = FastAPI()
 
-# Libera o acesso do front (CORS)
+# Configuração do CORS (libera o acesso de qualquer origem)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Em produção, defina o domínio exato
-    allow_credentials=True,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Modelo da mensagem
-class Mensagem(BaseModel):
-    mensagem: str
+# Cliente OpenAI
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# Rota principal de chat
+# ✅ Rota raiz para evitar erro 404
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    return """
+    <h1>🚀 HailuAI API</h1>
+    <p>API no ar com sucesso! Está tudo funcionando.</p>
+    <p>Use o front-end para enviar suas mensagens para a IA.</p>
+    """
+
+# 🔍 Rota principal de análise
 @app.post("/chat")
-async def chat(mensagem: Mensagem):
-    resposta = client.chat.completions.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "Você é o HailuAI, um assistente de IA para empresas. Responda de forma educada, profissional e direta."},
-            {"role": "user", "content": mensagem.mensagem}
-        ]
-    )
-    return {"resposta": resposta.choices[0].message.content}
+async def analisar_texto(request: Request):
+    dados = await request.json()
+    mensagem = dados.get("mensagem")
+
+    if not mensagem:
+        return JSONResponse(content={"erro": "Mensagem vazia."}, status_code=400)
+
+    try:
+        resposta = client.chat.completions.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "Você é um assistente profissional de IA para empresas."},
+                {"role": "user", "content": mensagem}
+            ]
+        )
+
+        resposta_ia = resposta.choices[0].message.content.strip()
+        return {"resposta": resposta_ia}
+
+    except Exception as e:
+        return JSONResponse(content={"erro": f"Erro ao processar a mensagem: {str(e)}"}, status_code=500)
