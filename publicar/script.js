@@ -6,10 +6,11 @@ form.addEventListener('submit', async (e) => {
   e.preventDefault();
   const mensagem = document.getElementById('mensagem').value;
 
-  respostaDiv.innerHTML = "<em>🤖 Pensando na melhor resposta pra sua empresa...</em>";
+  respostaDiv.innerHTML = '<div class="typing">🤖 Pensando na melhor resposta pra sua empresa...</div>';
+
 
   try {
-    const resposta = await fetch('http://127.0.0.1:8000/chat', {
+    const resposta = await fetch('http://localhost:8000/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -26,5 +27,9 @@ form.addEventListener('submit', async (e) => {
 
 limparBtn.addEventListener('click', () => {
   document.getElementById('mensagem').value = '';
-  respostaDiv.innerHTML = '';
+  respostaDiv.style.opacity = '0';
+  setTimeout(() => {
+    respostaDiv.innerHTML = '';
+    respostaDiv.style.opacity = '1';
+  }, 300);
 });
