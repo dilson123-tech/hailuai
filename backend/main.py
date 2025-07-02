@@ -8,37 +8,42 @@ load_dotenv()
 
 app = FastAPI()
 
-# Libera acesso de fora
+# Libera acesso de fora (CORS)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permite qualquer origem (ideal ajustar em produção)
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Inicializa cliente OpenAI com a chave secreta
+# Inicializa cliente OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ✅ Rota raiz só pra manter o container vivo
+# ✅ Rota raiz (mantém container Railway vivo)
 @app.get("/")
 def root():
     return {"status": "✅ HailuAI API online e funcionando!"}
 
-# 🤖 Rota principal da IA
+# 🤖 Rota do chat
 @app.post("/chat")
 async def chat(request: Request):
     dados = await request.json()
-    mensagem_usuario = dados.get("mensagem")
+    prompt = dados.get("mensagem")
 
-    if not mensagem_usuario:
+    if not prompt:
         return {"resposta": "⚠️ Nenhuma mensagem enviada."}
 
     resposta = client.chat.completions.create(
         model="gpt-4",
-        messages=[{"role": "user", "content": mensagem_usuario}],
+        messages=[
+            {
+                "role": "system",
+                "content": "Você é um assistente de IA especializado em ajudar empresas com inteligência artificial."
+            },
+            {"role": "user", "content": prompt}
+        ],
         temperature=0.7
     )
 
-    texto_gerado = resposta.choices[0].message.content
-    return {"resposta": texto_gerado}
+    return {"resposta": resposta.choices[0].message.content}
